@@ -166,6 +166,7 @@ window.I18N_EN = {
   "shops.detect.busy": "Detecting your location…",
   "shops.detect.ok": "Showing shops in {area}.",
   "shops.detect.fail": "We couldn't detect your area automatically — please choose your region below.",
+  "shops.detect.empty": "The shop list is being updated — as soon as shops are added, this will automatically show the ones nearest to you.",
   "shops.f.region": "Region",
   "shops.f.district": "District",
   "shops.f.division": "Division",

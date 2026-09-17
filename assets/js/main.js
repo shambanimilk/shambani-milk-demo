@@ -198,12 +198,18 @@
 
   document.addEventListener("langchange", retranslateCookieNotice);
 
+  // Run each piece independently — one failing initializer must never
+  // prevent the others (especially the cookie notice) from appearing.
+  function safe(fn) {
+    try { fn(); } catch (e) { /* keep the rest of the page working */ }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
-    applyI18n();
-    applyWaLinks();
-    initLangSwitch();
-    initNav();
-    initContactForm();
-    initCookieNotice();
+    safe(initCookieNotice);
+    safe(applyI18n);
+    safe(applyWaLinks);
+    safe(initLangSwitch);
+    safe(initNav);
+    safe(initContactForm);
   });
 })();

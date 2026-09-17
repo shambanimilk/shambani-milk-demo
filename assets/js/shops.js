@@ -292,6 +292,11 @@
   }
 
   function detectLocation(silent) {
+    // Nothing to match against yet — say so honestly instead of "detection failed"
+    if (!shops || !shops.length) {
+      if (!silent) setStatus(detectStatus, t("shops.detect.empty"), "busy");
+      return;
+    }
     if (!navigator.geolocation) {
       if (!silent) setStatus(detectStatus, t("shops.detect.fail"), "err");
       return;
@@ -324,6 +329,7 @@
    * already has location permission (previously granted). First-time visitors
    * never get a surprise permission popup — they use the button once. */
   function maybeAutoDetect() {
+    if (!shops || !shops.length) return; // no shops to match against yet
     if (!navigator.geolocation || !navigator.permissions || !navigator.permissions.query) return;
     navigator.permissions.query({ name: "geolocation" }).then(function (st) {
       if (st.state === "granted") detectLocation(true);

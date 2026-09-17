@@ -166,6 +166,7 @@ window.I18N_SW = {
   "shops.detect.busy": "Inatambua mahali ulipo…",
   "shops.detect.ok": "Inaonyesha maduka {area}.",
   "shops.detect.fail": "Samahani, tulishindwa kutambua eneo lako — tafadhali chagua mkoa wako hapa chini.",
+  "shops.detect.empty": "Orodha ya maduka inasasishwa — mara tu maduka yanapoongezwa, hii itaonyesha kiotomatiki yaliyo karibu nawe.",
   "shops.f.region": "Mkoa",
   "shops.f.district": "Wilaya",
   "shops.f.division": "Tarafa",
