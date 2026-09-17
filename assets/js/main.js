@@ -1,9 +1,10 @@
-/* Shambani Milk — language toggle, nav, WhatsApp links, contact form */
+/* Shambani Milk — language toggle, nav, WhatsApp links, contact form, cookie notice */
 (function () {
   "use strict";
 
   var WA_NUMBER = "255659566060"; // order line per website-build-prompt.md §7 (confirm with company)
   var LANG_KEY = "shambani-lang";
+  var COOKIE_KEY = "shambani-cookies";
 
   var lang = (function () {
     var saved = null;
@@ -152,11 +153,57 @@
     });
   }
 
+  /* ---------- cookie notice ---------- */
+
+  var cookieBanner = null;
+
+  function cookieBannerHtml() {
+    return '<p>' + (t("cookie.text") || "") +
+      ' <a href="privacy.html">' + (t("cookie.more") || "Privacy policy") + '</a></p>' +
+      '<div class="cookie-actions">' +
+      '<button type="button" class="btn btn-navy btn-sm" data-cookie="accepted">' + (t("cookie.accept") || "Accept") + '</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-cookie="essential">' + (t("cookie.essential") || "Essential only") + '</button>' +
+      '</div>';
+  }
+
+  function initCookieNotice() {
+    var saved = null;
+    try { saved = localStorage.getItem(COOKIE_KEY); } catch (e) {}
+    if (saved) return;
+
+    cookieBanner = document.createElement("div");
+    cookieBanner.className = "cookie-banner";
+    cookieBanner.setAttribute("role", "region");
+    cookieBanner.setAttribute("aria-label", t("cookie.aria") || "Cookie notice");
+    cookieBanner.innerHTML = cookieBannerHtml();
+    document.body.appendChild(cookieBanner);
+    document.body.classList.add("has-cookie");
+
+    cookieBanner.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-cookie]");
+      if (!b) return;
+      try { localStorage.setItem(COOKIE_KEY, b.getAttribute("data-cookie")); } catch (err) {}
+      cookieBanner.remove();
+      cookieBanner = null;
+      document.body.classList.remove("has-cookie");
+    });
+  }
+
+  function retranslateCookieNotice() {
+    if (cookieBanner && cookieBanner.parentNode) {
+      cookieBanner.setAttribute("aria-label", t("cookie.aria") || "Cookie notice");
+      cookieBanner.innerHTML = cookieBannerHtml();
+    }
+  }
+
+  document.addEventListener("langchange", retranslateCookieNotice);
+
   document.addEventListener("DOMContentLoaded", function () {
     applyI18n();
     applyWaLinks();
     initLangSwitch();
     initNav();
     initContactForm();
+    initCookieNotice();
   });
 })();

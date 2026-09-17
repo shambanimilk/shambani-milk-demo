@@ -382,3 +382,55 @@ h1, h2, h3, h4 { font-family: var(--font-head); line-height: 1.2; color: var(--n
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- Cookie notice ---------- */
+.cookie-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  background: var(--paper); border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 30px rgba(20,42,79,.14);
+  padding: 16px clamp(16px, 4vw, 40px);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 12px 24px;
+}
+.cookie-banner p {
+  margin: 0; max-width: 62ch; font-size: .88rem; color: var(--ink);
+}
+.cookie-banner a { color: var(--navy); font-weight: 600; }
+.cookie-actions { display: flex; gap: 10px; flex: none; }
+body.has-cookie .wa-float { bottom: 110px; }
+@media (max-width: 560px) {
+  .cookie-banner { flex-direction: column; align-items: stretch; text-align: center; }
+  .cookie-actions { justify-content: center; }
+  body.has-cookie .wa-float { bottom: 170px; }
+}
+
+/* ---------- Prose (privacy policy, blog articles) ---------- */
+.prose { max-width: 72ch; }
+.prose h2 { font-size: clamp(1.3rem, 2.6vw, 1.7rem); margin: 2.2rem 0 .8rem; }
+.prose h3 { font-size: 1.08rem; margin: 1.6rem 0 .5rem; }
+.prose p, .prose ul { color: var(--ink); font-size: .98rem; }
+.prose ul { padding-left: 1.3rem; margin: .6rem 0 1rem; }
+.prose li { margin-bottom: .4rem; }
+.prose .updated { color: var(--muted); font-size: .85rem; }
+
+/* ---------- Blog ---------- */
+.post-meta { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+.post-meta time { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.blog-card h3 { margin: 10px 0 8px; }
+.blog-card p { color: var(--muted); font-size: .93rem; margin: 0 0 14px; }
+.post-note { margin-top: 18px; font-size: .85rem; }
+.article-head { max-width: 72ch; margin-bottom: 6px; }
+.article-head h1 { font-size: clamp(1.6rem, 3.6vw, 2.4rem); }
+.article-body { max-width: 72ch; }
+.article-body p { font-size: 1rem; margin: 0 0 1rem; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 600; color: var(--navy); text-decoration: none; margin-bottom: 18px;
+}
+.back-link:hover { color: var(--blue-dark); }
+
+/* ---------- Shop distance chip ---------- */
+.shop-dist { margin: 0 0 4px; }
+/* Cookie banner buttons (btn-outline is white-on-dark by default; banner is light) */
+.cookie-banner .btn-outline { color: var(--navy); border-color: var(--line); background: var(--mist); }
+.cookie-banner .btn-outline:hover { background: var(--line); color: var(--navy); }

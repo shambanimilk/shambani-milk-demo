@@ -1,8 +1,18 @@
 /* Shambani Milk — "Shops Near You" locator.
  * Loads the shops table from Supabase (read-only, public), builds cascading
  * Region → District → Division → Ward filters from the data itself, adds a
- * street/shop-name search, and can pre-select the visitor's region using
- * browser geolocation + OpenStreetMap reverse geocoding (best effort).
+ * street/shop-name search, and locates the visitor via browser geolocation +
+ * OpenStreetMap reverse geocoding (best effort).
+ *
+ * Automatic mode: visitors who previously granted location permission get
+ * shops in their area loaded automatically on page load (no taps). First-time
+ * visitors use the "Use my location" button once — after that, every visit is
+ * automatic. Detection matches the geocoded area name down the cascade
+ * (region → district → division → ward) as far as the data allows.
+ *
+ * Distance-ready: if shop rows ever include `lat`/`lng` columns, results are
+ * sorted by distance from the visitor and each card shows a "X km away" chip.
+ * Without coordinates this code path simply stays inactive.
  */
 (function () {
   "use strict";
@@ -12,6 +22,7 @@
 
   var cfg = window.SUPABASE_CONFIG || {};
   var shops = null;          // cached rows
+  var userPos = null;        // {lat, lon} from the last successful detection
   var detectBtn = document.getElementById("detect-location");
   var detectStatus = document.getElementById("detect-status");
   var selRegion = document.getElementById("f-region");
@@ -130,6 +141,23 @@
 
   /* ---------- results ---------- */
 
+  function hasCoords(s) {
+    return s && isFinite(parseFloat(s.lat)) && isFinite(parseFloat(s.lng));
+  }
+
+  function kmBetween(lat1, lon1, lat2, lon2) {
+    var R = 6371, d2r = Math.PI / 180;
+    var dLat = (lat2 - lat1) * d2r, dLon = (lon2 - lon1) * d2r;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * d2r) * Math.cos(lat2 * d2r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function distanceKm(s) {
+    if (!userPos || !hasCoords(s)) return null;
+    return kmBetween(userPos.lat, userPos.lon, parseFloat(s.lat), parseFloat(s.lng));
+  }
+
   function currentResults() {
     var rows = filteredBy(FILTERS.length - 1);
     var q = (inpStreet && inpStreet.value || "").trim().toLowerCase();
@@ -138,6 +166,16 @@
         return (["street", "shop_name", "address", "ward"].some(function (k) {
           return ((r[k] || "") + "").toLowerCase().indexOf(q) !== -1;
         }));
+      });
+    }
+    // Distance sort (active only when shops carry lat/lng and we know the visitor's position)
+    if (userPos && rows.some(hasCoords)) {
+      rows = rows.slice().sort(function (a, b) {
+        var da = distanceKm(a), db = distanceKm(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da - db;
       });
     }
     return rows;
@@ -149,6 +187,8 @@
     html += "<h3>" + esc(s.shop_name) + "</h3>";
     if (where) html += '<p class="shop-where">' + esc(where) + "</p>";
     if (s.address) html += '<p class="shop-addr">' + esc(s.address) + "</p>";
+    var km = distanceKm(s);
+    if (km != null) html += '<p class="shop-dist"><span class="chip">' + esc(km < 10 ? km.toFixed(1) : Math.round(km)) + " km</span></p>";
     html += '<div class="shop-actions">';
     if (s.phone) html += '<a class="btn btn-navy btn-sm" href="tel:' + esc(String(s.phone).replace(/[^+\d]/g, "")) + '">' + esc(t("shops.call")) + "</a>";
     if (s.whatsapp) {
@@ -180,36 +220,114 @@
 
   /* ---------- location detection (best effort) ---------- */
 
-  function normalizeRegion(name) {
+  // Normalise an administrative name so geocoder output can be matched
+  // against the values stored in the shops table. Handles English and
+  // Swahili prefixes/suffixes and ignores case/punctuation, e.g.
+  // "Morogoro Municipal Council" ~= "Morogoro Municipal".
+  function normName(name) {
     return String(name || "").toLowerCase()
-      .replace(/mkoa\s+wa\s+/i, "").replace(/\s*region$/i, "").trim();
+      .replace(/mkoa\s+wa\s+/g, "")
+      .replace(/wilaya\s+ya\s+/g, "")
+      .replace(/kata\s+ya\s+/g, "")
+      .replace(/mtaa\s+wa\s+/g, "")
+      .replace(/\s*(region|district|division|ward|council|municipal council|city council)\s*$/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
   }
 
-  function detectLocation() {
-    if (!navigator.geolocation) { setStatus(detectStatus, t("shops.detect.fail"), "err"); return; }
-    setStatus(detectStatus, t("shops.detect.busy"), "busy");
+  // Find the stored option that best matches a geocoded name.
+  function matchIn(options, rawName) {
+    if (!rawName) return null;
+    var n = normName(rawName);
+    if (!n) return null;
+    for (var i = 0; i < options.length; i++) {
+      var o = normName(options[i]);
+      if (!o) continue;
+      if (o === n) return options[i];
+    }
+    // Fallback: one side contained in the other (e.g. "Morogoro" vs "Morogoro Municipal")
+    for (var j = 0; j < options.length; j++) {
+      var o2 = normName(options[j]);
+      if (o2 && (o2.indexOf(n) !== -1 || n.indexOf(o2) !== -1)) return options[j];
+    }
+    return null;
+  }
+
+  // Apply a geocoded address to the cascade, level by level. Selects must be
+  // rebuilt between assignments so the next level's options exist.
+  // Returns the deepest matched level name, or null if the region didn't match.
+  function applyDetected(addr) {
+    if (!shops || !shops.length) return null;
+
+    var regions = distinctSorted(shops, "region");
+    var rMatch = matchIn(regions, addr.state || addr.region);
+    if (!rMatch) return null;
+    selRegion.value = rMatch;
+    rebuildSelects(1);
+
+    var deepest = rMatch;
+
+    var dMatch = matchIn(distinctSorted(filteredBy(0), "district"), addr.city_district || addr.county || addr.city || addr.town);
+    if (dMatch) {
+      selDistrict.value = dMatch;
+      rebuildSelects(2);
+      deepest = dMatch;
+    }
+
+    var divMatch = matchIn(distinctSorted(filteredBy(1), "division"), addr.suburb || addr.city_district || addr.quarter);
+    if (divMatch) {
+      selDivision.value = divMatch;
+      rebuildSelects(3);
+      deepest = divMatch;
+    }
+
+    var wMatch = matchIn(distinctSorted(filteredBy(2), "ward"), addr.neighbourhood || addr.suburb || addr.quarter || addr.city_district);
+    if (wMatch) {
+      selWard.value = wMatch;
+      deepest = wMatch;
+    }
+
+    render();
+    return deepest;
+  }
+
+  function detectLocation(silent) {
+    if (!navigator.geolocation) {
+      if (!silent) setStatus(detectStatus, t("shops.detect.fail"), "err");
+      return;
+    }
+    if (!silent) setStatus(detectStatus, t("shops.detect.busy"), "busy");
     navigator.geolocation.getCurrentPosition(function (pos) {
-      var lat = pos.coords.latitude, lon = pos.coords.longitude;
-      fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=5&lat=" + lat + "&lon=" + lon + "&accept-language=en", {
+      userPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=" + userPos.lat + "&lon=" + userPos.lon + "&accept-language=en", {
         headers: { "Accept": "application/json" }
       }).then(function (r) { return r.json(); }).then(function (data) {
-        var detected = normalizeRegion(data && data.address && (data.address.state || data.address.region || ""));
-        var regions = distinctSorted(shops || [], "region");
-        var match = null;
-        for (var i = 0; i < regions.length; i++) {
-          if (normalizeRegion(regions[i]) === detected) { match = regions[i]; break; }
-        }
-        if (match) {
-          selRegion.value = match;
-          refresh(1);
-          setStatus(detectStatus, t("shops.detect.ok").replace("{region}", match), "ok");
+        var addr = (data && data.address) || {};
+        var area = applyDetected(addr);
+        if (area) {
+          setStatus(detectStatus, t("shops.detect.ok").replace("{area}", area), "ok");
+        } else if (silent) {
+          // Automatic attempt found nothing usable — stay quiet, default view is fine
+          setStatus(detectStatus, "");
         } else {
           setStatus(detectStatus, t("shops.detect.fail"), "err");
         }
-      }).catch(function () { setStatus(detectStatus, t("shops.detect.fail"), "err"); });
+      }).catch(function () {
+        if (!silent) setStatus(detectStatus, t("shops.detect.fail"), "err");
+      });
     }, function () {
-      setStatus(detectStatus, t("shops.detect.fail"), "err");
-    }, { timeout: 10000 });
+      if (!silent) setStatus(detectStatus, t("shops.detect.fail"), "err");
+    }, { timeout: 10000, maximumAge: 300000 });
+  }
+
+  /* Automatic detection for returning visitors: only runs when the browser
+   * already has location permission (previously granted). First-time visitors
+   * never get a surprise permission popup — they use the button once. */
+  function maybeAutoDetect() {
+    if (!navigator.geolocation || !navigator.permissions || !navigator.permissions.query) return;
+    navigator.permissions.query({ name: "geolocation" }).then(function (st) {
+      if (st.state === "granted") detectLocation(true);
+    }).catch(function () { /* permissions API unavailable — manual button only */ });
   }
 
   /* ---------- wire up ---------- */
@@ -218,10 +336,13 @@
     f.sel.addEventListener("change", function () { refresh(i + 1); });
   });
   if (inpStreet) inpStreet.addEventListener("input", function () { render(); });
-  if (detectBtn) detectBtn.addEventListener("click", detectLocation);
+  if (detectBtn) detectBtn.addEventListener("click", function () { detectLocation(false); });
 
   document.addEventListener("langchange", function () { refresh(0); });
 
   // script is deferred, so the DOM is already parsed — init directly
-  loadShops(function () { refresh(0); });
+  loadShops(function () {
+    refresh(0);
+    maybeAutoDetect();
+  });
 })();
