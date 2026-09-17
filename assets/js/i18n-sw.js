@@ -182,6 +182,7 @@ window.I18N_SW = {
   "shops.none.area": "Hakuna maduka yaliyosajiliwa eneo hili bado — jaribu kuchagua eneo kubwa zaidi.",
   "shops.none.yet": "Orodha ya maduka inasasishwa — maduka yataonekana hapa hivi karibuni. Wewe ni mmiliki wa duka? Tu-WhatsApp ili uwekwe kwenye orodha.",
   "shops.call": "Piga simu",
+  "shops.directions": "Maelekezo",
   "loc.hq.title": "Ofisi kuu na kiwanda",
   "loc.hq.l1": "Tungi, Mfuruni",
   "loc.hq.l2": "Morogoro, Tanzania",

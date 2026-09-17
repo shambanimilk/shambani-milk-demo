@@ -434,3 +434,6 @@ body.has-cookie .wa-float { bottom: 110px; }
 /* Cookie banner buttons (btn-outline is white-on-dark by default; banner is light) */
 .cookie-banner .btn-outline { color: var(--navy); border-color: var(--line); background: var(--mist); }
 .cookie-banner .btn-outline:hover { background: var(--line); color: var(--navy); }
+/* Directions button on shop cards (light surface) */
+.shop-dir { color: var(--navy); border-color: var(--line); background: var(--mist); }
+.shop-dir:hover { background: var(--line); color: var(--navy); }

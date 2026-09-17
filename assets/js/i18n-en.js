@@ -182,6 +182,7 @@ window.I18N_EN = {
   "shops.none.area": "No shops listed in this area yet — try choosing a wider area.",
   "shops.none.yet": "The shop list is being updated — shops will appear here soon. Shop owner? WhatsApp us to get listed.",
   "shops.call": "Call",
+  "shops.directions": "Directions",
   "loc.hq.title": "Head office & factory",
   "loc.hq.l1": "Tungi, Mfuruni",
   "loc.hq.l2": "Morogoro, Tanzania",

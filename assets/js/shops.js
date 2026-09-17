@@ -195,6 +195,11 @@
       var digits = String(s.whatsapp).replace(/\D/g, "");
       html += '<a class="btn btn-wa btn-sm" href="https://wa.me/' + esc(digits) + '" target="_blank" rel="noopener">WhatsApp</a>';
     }
+    if (hasCoords(s)) {
+      html += '<a class="btn btn-outline btn-sm shop-dir" href="https://www.google.com/maps/dir/?api=1&destination=' +
+        encodeURIComponent(parseFloat(s.lat) + "," + parseFloat(s.lng)) +
+        '" target="_blank" rel="noopener">' + esc(t("shops.directions")) + "</a>";
+    }
     html += "</div></div></article>";
     return html;
   }
